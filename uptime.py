@@ -15,7 +15,10 @@ from datetime import datetime
 sys.stdout.reconfigure(encoding='utf-8')
 os.environ['PYTHONIOENCODING'] = 'utf-8'
 
-output_file = f"uptime_log_{datetime.now().strftime('%Y-%m-%d_%H_%M_%S')}.log"
+LOG_DIR = "log"
+SUMMARY_FILE = os.path.join(LOG_DIR, "uptime_master_summary.log")
+current_log_date = datetime.now().strftime('%Y-%m-%d')
+output_file = os.path.join(LOG_DIR, f"uptime_log_{current_log_date}.log")
 win_version = platform.win32_ver()
 try:  # Windows 11 starts from build number 22000
     build_number = int(win_version[1].split('.')[2])
@@ -196,21 +199,21 @@ def main() -> None:
             time.sleep(ping_interval_seconds)
 
     except KeyboardInterrupt:
-        print_and_log("\nFinal Uptime and Response Times:")
-        calulate_stats(all_hosts)
+        print_and_log("\nFinal Uptime and Response Times:", to_summary=True)
+        calulate_stats(all_hosts, to_summary=True)
         script_end = time.time()
         total_time = script_end - script_start
         message = format_seconds(total_time)
         if outages:
-            print_outage_info(outages)
+            print_outage_info(outages, to_summary=True)
         else:
-            print_and_log("\nNo outages")
-        print_and_log(f"\nProgram ran for: {message}\n")
+            print_and_log("\nNo outages", to_summary=True)
+        print_and_log(f"\nProgram ran for: {message}\n", to_summary=True)
 
 
-def print_outage_info(all_outages: list[Outage]) -> None:
-    print_and_log(f"\nTotal outages: {len(all_outages)}")
-    print_and_log("Outage Log:")
+def print_outage_info(all_outages: list[Outage], to_summary: bool = False) -> None:
+    print_and_log(f"\nTotal outages: {len(all_outages)}", to_summary=to_summary)
+    print_and_log("Outage Log:", to_summary=to_summary)
     column_names = ["Start", "End", "Duration"]
 
     stats: list[list] = []
@@ -219,11 +222,11 @@ def print_outage_info(all_outages: list[Outage]) -> None:
                       datetime.fromtimestamp(outage.end).strftime('%Y-%m-%d %H:%M:%S'),
                       format_seconds(outage.duration)])
 
-    print_formatted_stats(stats, column_names)
+    print_formatted_stats(stats, column_names, to_summary=to_summary)
 
 
-def calulate_stats(all_hosts: list[Host]) -> None:
-    print_and_log("\n")
+def calulate_stats(all_hosts: list[Host], to_summary: bool = False) -> None:
+    print_and_log("\n", to_summary=to_summary)
     column_names = ["Host", "Uptime", "Average", "Low", "High"]
 
     stats: list[list] = []
@@ -234,20 +237,20 @@ def calulate_stats(all_hosts: list[Host]) -> None:
         average = f"{host.avg_response_time:.2f} ms"
         stats.append([host.address, uptime, average, low, high])
 
-    print_formatted_stats(stats, column_names)
+    print_formatted_stats(stats, column_names, to_summary=to_summary)
 
 
-def print_formatted_stats(stats: list[list], column_names: list) -> None:
+def print_formatted_stats(stats: list[list], column_names: list, to_summary: bool = False) -> None:
     # Determine column widths for alignment
     col_widths = [max(len(str(item)) for item in col) for col in zip(*stats, column_names)]
 
     # Print header
-    print_and_log(" | ".join(header.ljust(width) for header, width in zip(column_names, col_widths)))
-    print_and_log("-+-".join('-' * width for width in col_widths))
+    print_and_log(" | ".join(header.ljust(width) for header, width in zip(column_names, col_widths)), to_summary=to_summary)
+    print_and_log("-+-".join('-' * width for width in col_widths), to_summary=to_summary)
 
     # Print stats
     for stat in stats:
-        print_and_log(" | ".join(str(item).ljust(width) for item, width in zip(stat, col_widths)))
+        print_and_log(" | ".join(str(item).ljust(width) for item, width in zip(stat, col_widths)), to_summary=to_summary)
 
 
 def format_seconds(seconds_time: float) -> str:
@@ -263,10 +266,35 @@ def format_seconds(seconds_time: float) -> str:
     return total_time_message
 
 
-def print_and_log(output: str) -> None:
+def print_and_log(output: str, to_summary: bool = False) -> None:
+    global output_file, current_log_date
     print(output)
-    with open(output_file, 'a', encoding='utf-8') as file:
-        file.write(output + '\n')
+    new_log_date = datetime.now().strftime('%Y-%m-%d')
+    if new_log_date != current_log_date:
+        # Roll to new log file
+        current_log_date = new_log_date
+        output_file = os.path.join(LOG_DIR, f"uptime_log_{current_log_date}.log")
+        # Remove daily log files older than 14 days (exclude master summary)
+        now = time.time()
+        for fname in os.listdir(LOG_DIR):
+            fpath = os.path.join(LOG_DIR, fname)
+            if fname.startswith("uptime_log_") and fname.endswith(".log") and fname != os.path.basename(SUMMARY_FILE):
+                try:
+                    mtime = os.path.getmtime(fpath)
+                    if (now - mtime) > 14 * 86400:
+                        os.remove(fpath)
+                except Exception:
+                    pass
+    # Ensure log directory exists
+    os.makedirs(LOG_DIR, exist_ok=True)
+    # Write to daily log file
+    if not to_summary:
+        with open(output_file, 'a', encoding='utf-8') as file:
+            file.write(output + '\n')
+    # Write to master summary file
+    else:
+        with open(SUMMARY_FILE, 'a', encoding='utf-8') as file:
+            file.write(output + '\n')
 
 
 if __name__ == '__main__':
