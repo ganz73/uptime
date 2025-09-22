@@ -195,29 +195,66 @@ def main() -> None:
                     host.uptime_percentage = host.success_pings / host.total_pings * 100
                     host.avg_response_time = host.total_response_time / len(host.response_times)
 
-                # Write periodic stats to both log and summary
-                print_and_log("\nCurrent Uptime and Response Times:", to_summary=True)
-                calculate_stats(all_hosts, to_summary=True)
-                if outages:
-                    print_outage_info(outages, to_summary=True)
-                elif outage_start:
-                    print_and_log(
-                        f"\nOngoing outage since {datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')}",
-                        to_summary=True)
-                else:
-                    print_and_log("\nNo outages", to_summary=True)
-                print_and_log("\n" + formatted_names)
+                # Always update the summary file with latest stats (overwrite)
+                with open(SUMMARY_FILE, "w", encoding="utf-8") as f:
+                    f.write("Current Uptime and Response Times\n\n")
+                    # Write stats directly to summary file
+                    stats = []
+                    column_names = ["Host", "Uptime", "Average", "Low", "High"]
+                    for host in all_hosts:
+                        uptime = f"{host.uptime_percentage:.2f}%"
+                        high = f"{host.high_response_time:.2f} ms"
+                        low = f"{host.low_response_time:.2f} ms"
+                        average = f"{host.avg_response_time:.2f} ms"
+                        stats.append([host.address, uptime, average, low, high])
+                    
+                    # Calculate column widths
+                    col_widths = [max(len(str(item)) for item in col) for col in zip(*stats, column_names)]
+                    
+                    # Write formatted stats
+                    f.write(" | ".join(header.ljust(width) for header, width in zip(column_names, col_widths)) + "\n")
+                    f.write("-+-".join('-' * width for width in col_widths) + "\n")
+                    for stat in stats:
+                        f.write(" | ".join(str(item).ljust(width) for item, width in zip(stat, col_widths)) + "\n")
+                    
+                    # Add outage information
+                    f.write("\n")
+                    if outages:
+                        f.write(f"Total outages: {len(outages)}\n")
+                        f.write("Outage History (last 100 outages):\n")
+                        
+                        # Show up to last 100 outages, newest first
+                        recent_outages = outages[-100:]
+                        recent_outages.reverse()  # Show newest first
+                        
+                        # Format as a table for better readability
+                        f.write("\nStart Time           | End Time             | Duration\n")
+                        f.write("-"*19 + "+" + "-"*20 + "+" + "-"*20 + "\n")
+                        for outage in recent_outages:
+                            start_time = datetime.fromtimestamp(outage.start).strftime('%Y-%m-%d %H:%M:%S')
+                            end_time = datetime.fromtimestamp(outage.end).strftime('%Y-%m-%d %H:%M:%S')
+                            duration = format_seconds(outage.duration).ljust(18)
+                            f.write(f"{start_time} | {end_time} | {duration}\n")
+                    elif outage_start:
+                        f.write(f"\nOngoing outage since {datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    else:
+                        f.write("No outages\n")
+                    
+                    # Add run time
+                    current_runtime = time.time() - script_start
+                    f.write(f"\nProgram running for: {format_seconds(current_runtime)}\n")
+                    f.write(f"Last updated: {datetime.now(system_timezone).strftime('%Y-%m-%d %H:%M:%S')}\n")
                 
-                # Write regular stats to log only
-                calculate_stats(all_hosts)
+                # Only print to console, don't write stats to log file
+                print("\nCurrent Uptime and Response Times:")
+                calculate_stats(all_hosts, console_only=True)
                 if outages:
-                    print_outage_info(outages)
+                    print_outage_info(outages, console_only=True)
                 elif outage_start:
-                    print_and_log(
-                        f"\nOngoing outage since {datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')}")
+                    print(f"\nOngoing outage since {datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')}")
                 else:
-                    print_and_log("\nNo outages")
-                print_and_log("\n" + formatted_names)
+                    print("\nNo outages")
+                print("\n" + formatted_names)
 
             time.sleep(ping_interval_seconds)
 
@@ -234,9 +271,9 @@ def main() -> None:
         print_and_log(f"\nProgram ran for: {message}\n", to_summary=True)
 
 
-def print_outage_info(all_outages: list[Outage], to_summary: bool = False) -> None:
-    print_and_log(f"\nTotal outages: {len(all_outages)}", to_summary=to_summary)
-    print_and_log("Outage Log:", to_summary=to_summary)
+def print_outage_info(all_outages: list[Outage], console_only: bool = False) -> None:
+    print(f"\nTotal outages: {len(all_outages)}")
+    print("Outage Log:")
     column_names = ["Start", "End", "Duration"]
 
     stats: list[list] = []
@@ -245,11 +282,20 @@ def print_outage_info(all_outages: list[Outage], to_summary: bool = False) -> No
                       datetime.fromtimestamp(outage.end).strftime('%Y-%m-%d %H:%M:%S'),
                       format_seconds(outage.duration)])
 
-    print_formatted_stats(stats, column_names, to_summary=to_summary)
+    # Calculate column widths and format output
+    col_widths = [max(len(str(item)) for item in col) for col in zip(*stats, column_names)]
+    
+    # Print header
+    print(" | ".join(header.ljust(width) for header, width in zip(column_names, col_widths)))
+    print("-+-".join('-' * width for width in col_widths))
+    
+    # Print stats
+    for stat in stats:
+        print(" | ".join(str(item).ljust(width) for item, width in zip(stat, col_widths)))
 
 
-def calculate_stats(all_hosts: list[Host], to_summary: bool = False) -> None:
-    print_and_log("\n", to_summary=to_summary)
+def calculate_stats(all_hosts: list[Host], console_only: bool = False) -> None:
+    print("\n")
     column_names = ["Host", "Uptime", "Average", "Low", "High"]
 
     stats: list[list] = []
@@ -260,7 +306,16 @@ def calculate_stats(all_hosts: list[Host], to_summary: bool = False) -> None:
         average = f"{host.avg_response_time:.2f} ms"
         stats.append([host.address, uptime, average, low, high])
 
-    print_formatted_stats(stats, column_names, to_summary=to_summary)
+    # Calculate column widths and format output
+    col_widths = [max(len(str(item)) for item in col) for col in zip(*stats, column_names)]
+    
+    # Print header
+    print(" | ".join(header.ljust(width) for header, width in zip(column_names, col_widths)))
+    print("-+-".join('-' * width for width in col_widths))
+    
+    # Print stats
+    for stat in stats:
+        print(" | ".join(str(item).ljust(width) for item, width in zip(stat, col_widths)))
 
 
 def print_formatted_stats(stats: list[list], column_names: list, to_summary: bool = False) -> None:

@@ -65,12 +65,7 @@
         </div>
 
         <div class="card">
-            <h2>Latest Log</h2>
-            <pre>{{ latest_log }}</pre>
-        </div>
-
-        <div class="card">
-            <h2>Previous Logs</h2>
+            <h2>Log Files</h2>
             <ul class="log-links">
                 {% for log in log_files %}
                     <li><a href="/logs/{{ log[11:-4] }}">{{ log[11:-4] }}</a></li>

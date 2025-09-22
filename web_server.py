@@ -32,15 +32,11 @@ def read_log_file(filename):
 
 @app.route('/')
 def home():
-    """Display the home page with summary and latest logs."""
+    """Display the home page with summary and log file links."""
     log_files = get_log_files()
-    latest_log = None
-    if log_files:
-        latest_log = read_log_file(log_files[0])
     summary = read_master_summary()
     return render_template('index.html', 
                          summary=summary,
-                         latest_log=latest_log,
                          log_files=log_files)
 
 @app.route('/logs/<date>')
