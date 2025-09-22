@@ -32,13 +32,67 @@ git clone https://github.com/zero-stroke/uptime.git
 
 ## Running the Script
 
+### Running Locally
+
 1. Open your terminal/command prompt
 2. Navigate to script location: `cd path/to/script`. For example, `cd C:/Users/you/Downloads/uptime/`
-
 3. Run by opening your command prompt/terminal and entering the following command: 
 ```shell
 python uptime.py
 ```
+
+### Running with Docker
+
+#### Using Helper Scripts (Windows)
+
+Two PowerShell scripts are provided for easy management:
+
+1. **Starting the Monitor**:
+   - Double-click `start-uptime.ps1` in File Explorer, or run in PowerShell:
+   ```powershell
+   .\start-uptime.ps1
+   ```
+   This will build the image, start the container, and show you the web interface URL.
+
+2. **Stopping the Monitor**:
+   - Double-click `stop-uptime.ps1` in File Explorer, or run in PowerShell:
+   ```powershell
+   .\stop-uptime.ps1
+   ```
+   This will stop and clean up the container while preserving your logs.
+
+#### Manual Docker Commands
+
+If you prefer using Docker commands directly:
+
+1. Build the Docker image:
+```shell
+docker build -t uptime-monitor .
+```
+
+2. Run the container, mapping the log directory and exposing the web interface:
+```shell
+docker run -d \
+  -v /path/to/nas/logs:/app/log \
+  -p 8080:8080 \
+  --name uptime-monitor \
+  uptime-monitor
+```
+
+Replace `/path/to/nas/logs` with the actual path to your NAS directory where you want to store the logs.
+
+### Accessing the Web Interface
+
+Once the container is running, you can access the web interface:
+
+1. Open your web browser
+2. Navigate to `http://your-server-ip:8080`
+
+The web interface provides:
+- Current uptime summary
+- Latest ping results
+- Access to historical log files
+- Mobile-friendly interface for easy monitoring on the go
 
 ## Usage 
 It logs instances at which all three ping attempts are not successful and tracks them as outages, and records how long these outages go on for.

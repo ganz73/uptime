@@ -11,13 +11,22 @@ import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
+import pytz
+from zoneinfo import ZoneInfo
+from datetime import timezone
 
 sys.stdout.reconfigure(encoding='utf-8')
 os.environ['PYTHONIOENCODING'] = 'utf-8'
 
+# Get system timezone
+try:
+    system_timezone = datetime.now(timezone.utc).astimezone().tzinfo
+except Exception:
+    system_timezone = ZoneInfo('UTC')  # Fallback to UTC if can't determine
+
 LOG_DIR = "log"
 SUMMARY_FILE = os.path.join(LOG_DIR, "uptime_master_summary.log")
-current_log_date = datetime.now().strftime('%Y-%m-%d')
+current_log_date = datetime.now(system_timezone).strftime('%Y-%m-%d')
 output_file = os.path.join(LOG_DIR, f"uptime_log_{current_log_date}.log")
 win_version = platform.win32_ver()
 try:  # Windows 11 starts from build number 22000
@@ -168,7 +177,7 @@ def main() -> None:
                     ping_result_output.append(x.ljust(ljust_num))
 
             if all_failed:
-                print_and_log(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {x * 7} Internet Outage {x * 7} ")
+                print_and_log(f"{datetime.now(system_timezone).strftime('%Y-%m-%d %H:%M:%S')} - {x * 7} Internet Outage {x * 7} ")
                 if not outage_start:
                     outage_start = time.time()
             else:
@@ -179,14 +188,28 @@ def main() -> None:
                     outages.append(outage)
                     outage_start = 0.0
                 print_and_log(
-                    f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {'    '.join(ping_result_output)}"[:-2])
+                    f"{datetime.now(system_timezone).strftime('%Y-%m-%d %H:%M:%S')} - {'    '.join(ping_result_output)}"[:-2])
 
             if all_hosts[0].total_pings % info_print_interval_seconds == 0:  # Every x seconds
                 for host in all_hosts:
                     host.uptime_percentage = host.success_pings / host.total_pings * 100
                     host.avg_response_time = host.total_response_time / len(host.response_times)
 
-                calulate_stats(all_hosts)
+                # Write periodic stats to both log and summary
+                print_and_log("\nCurrent Uptime and Response Times:", to_summary=True)
+                calculate_stats(all_hosts, to_summary=True)
+                if outages:
+                    print_outage_info(outages, to_summary=True)
+                elif outage_start:
+                    print_and_log(
+                        f"\nOngoing outage since {datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')}",
+                        to_summary=True)
+                else:
+                    print_and_log("\nNo outages", to_summary=True)
+                print_and_log("\n" + formatted_names)
+                
+                # Write regular stats to log only
+                calculate_stats(all_hosts)
                 if outages:
                     print_outage_info(outages)
                 elif outage_start:
@@ -200,7 +223,7 @@ def main() -> None:
 
     except KeyboardInterrupt:
         print_and_log("\nFinal Uptime and Response Times:", to_summary=True)
-        calulate_stats(all_hosts, to_summary=True)
+        calculate_stats(all_hosts, to_summary=True)
         script_end = time.time()
         total_time = script_end - script_start
         message = format_seconds(total_time)
@@ -225,7 +248,7 @@ def print_outage_info(all_outages: list[Outage], to_summary: bool = False) -> No
     print_formatted_stats(stats, column_names, to_summary=to_summary)
 
 
-def calulate_stats(all_hosts: list[Host], to_summary: bool = False) -> None:
+def calculate_stats(all_hosts: list[Host], to_summary: bool = False) -> None:
     print_and_log("\n", to_summary=to_summary)
     column_names = ["Host", "Uptime", "Average", "Low", "High"]
 
@@ -269,7 +292,7 @@ def format_seconds(seconds_time: float) -> str:
 def print_and_log(output: str, to_summary: bool = False) -> None:
     global output_file, current_log_date
     print(output)
-    new_log_date = datetime.now().strftime('%Y-%m-%d')
+    new_log_date = datetime.now(system_timezone).strftime('%Y-%m-%d')
     if new_log_date != current_log_date:
         # Roll to new log file
         current_log_date = new_log_date
@@ -287,14 +310,28 @@ def print_and_log(output: str, to_summary: bool = False) -> None:
                     pass
     # Ensure log directory exists
     os.makedirs(LOG_DIR, exist_ok=True)
-    # Write to daily log file
-    if not to_summary:
-        with open(output_file, 'a', encoding='utf-8') as file:
-            file.write(output + '\n')
-    # Write to master summary file
+    # Write to the appropriate file based on the to_summary flag
+    if to_summary:
+        try:
+            # When writing summary, use 'w' mode to clear the file if it's the start of a new summary
+            mode = "w" if output.startswith("\nFinal Uptime") else "a"
+            print(f"Debug: Writing to summary file {SUMMARY_FILE} with mode {mode}")
+            print(f"Debug: Summary directory exists: {os.path.exists(os.path.dirname(SUMMARY_FILE))}")
+            
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(SUMMARY_FILE), exist_ok=True)
+            
+            # Write to the summary file
+            with open(SUMMARY_FILE, mode, encoding="utf-8") as f:
+                f.write(output + "\n")
+            
+            print(f"Debug: Successfully wrote to summary file")
+        except Exception as e:
+            print(f"Debug: Error writing to summary file: {str(e)}")
     else:
-        with open(SUMMARY_FILE, 'a', encoding='utf-8') as file:
-            file.write(output + '\n')
+        # Write to daily log file
+        with open(output_file, "a", encoding="utf-8") as f:
+            f.write(output + "\n")
 
 
 if __name__ == '__main__':
