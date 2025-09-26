@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNS Uptime Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        .log-links {
+            list-style: none;
+            padding: 0;
+        }
+        .log-links li {
+            margin-bottom: 10px;
+        }
+        .log-links a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .log-links a:hover {
+            text-decoration: underline;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #007bff;
+            color: white !important;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            text-align: center;
+            min-width: 150px;
+            margin: 5px 10px 5px 0;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,123,255,0.3);
+        }
+        .cta-button:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,123,255,0.4);
+            text-decoration: none;
+        }
+        .cta-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,123,255,0.3);
+        }
+        .admin-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        @media (max-width: 768px) {
+            body {
+                margin: 10px;
+            }
+            pre {
+                font-size: 12px;
+            }
+            .cta-button {
+                width: 100%;
+                margin: 5px 0;
+                box-sizing: border-box;
+            }
+            .admin-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DNS Uptime Monitor</h1>
+        
+        <div class="card">
+            <h2>Summary</h2>
+            <pre>{{ summary }}</pre>
+        </div>
+
+        <div class="card">
+            <h2>Network Admin</h2>
+            <div class="admin-buttons">
+                <a href="http://192.168.68.1" target="_blank" class="cta-button">🌐 Router Admin</a>
+                <a href="http://192.168.100.1" target="_blank" class="cta-button">☎️ Modem Admin</a>
+                <a href="https://www.google.com/search?q=internet+speed+test" target="_blank" class="cta-button">⚡ Speed Test</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Log Files</h2>
+            <ul class="log-links">
+                {% for log in log_files %}
+                    <li><a href="/logs/{{ log[11:-4] }}">{{ log[11:-4] }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

@@ -32,13 +32,73 @@ git clone https://github.com/zero-stroke/uptime.git
 
 ## Running the Script
 
+### Running Locally
+
 1. Open your terminal/command prompt
 2. Navigate to script location: `cd path/to/script`. For example, `cd C:/Users/you/Downloads/uptime/`
-
 3. Run by opening your command prompt/terminal and entering the following command: 
 ```shell
 python uptime.py
 ```
+
+### Running with Docker
+
+#### Using Helper Scripts (Git Bash/Linux/macOS)
+
+Two bash scripts are provided for easy management:
+
+1. **Starting the Monitor**:
+   ```bash
+   ./start-uptime.sh
+   ```
+   This will build the image, start the container, and show you the web interface URL.
+
+2. **Stopping the Monitor**:
+   ```bash
+   ./stop-uptime.sh
+   ```
+   This will stop and clean up the container while preserving your logs.
+
+**Note**: Make sure the scripts are executable. If not, run:
+```bash
+chmod +x start-uptime.sh stop-uptime.sh
+```
+
+#### Manual Docker Commands
+
+If you prefer using Docker commands directly:
+
+1. Build the Docker image:
+```shell
+docker build -t uptime-monitor .
+```
+
+2. Run the container, mapping the log directory and exposing the web interface:
+```bash
+docker run -d \
+  -v "$HOME/uptime_logs:/app/log" \
+  -e "TZ=America/New_York" \
+  -p 8080:8080 \
+  --name uptime-monitor \
+  uptime-monitor
+```
+
+Replace `$HOME/uptime_logs` with the actual path where you want to store the logs.
+
+### Accessing the Web Interface
+
+Once the container is running, you can access the web interface:
+
+1. Open your web browser
+2. Navigate to `http://your-server-ip:8080`
+
+The web interface provides:
+- Current uptime summary
+- Latest ping results
+- Access to historical log files
+- Network admin tools (router/modem admin panels)
+- Internet speed test integration
+- Mobile-friendly interface for easy monitoring on the go
 
 ## Usage 
 It logs instances at which all three ping attempts are not successful and tracks them as outages, and records how long these outages go on for.
