@@ -43,23 +43,26 @@ python uptime.py
 
 ### Running with Docker
 
-#### Using Helper Scripts (Windows)
+#### Using Helper Scripts (Git Bash/Linux/macOS)
 
-Two PowerShell scripts are provided for easy management:
+Two bash scripts are provided for easy management:
 
 1. **Starting the Monitor**:
-   - Double-click `start-uptime.ps1` in File Explorer, or run in PowerShell:
-   ```powershell
-   .\start-uptime.ps1
+   ```bash
+   ./start-uptime.sh
    ```
    This will build the image, start the container, and show you the web interface URL.
 
 2. **Stopping the Monitor**:
-   - Double-click `stop-uptime.ps1` in File Explorer, or run in PowerShell:
-   ```powershell
-   .\stop-uptime.ps1
+   ```bash
+   ./stop-uptime.sh
    ```
    This will stop and clean up the container while preserving your logs.
+
+**Note**: Make sure the scripts are executable. If not, run:
+```bash
+chmod +x start-uptime.sh stop-uptime.sh
+```
 
 #### Manual Docker Commands
 
@@ -71,15 +74,16 @@ docker build -t uptime-monitor .
 ```
 
 2. Run the container, mapping the log directory and exposing the web interface:
-```shell
+```bash
 docker run -d \
-  -v /path/to/nas/logs:/app/log \
+  -v "$HOME/uptime_logs:/app/log" \
+  -e "TZ=America/New_York" \
   -p 8080:8080 \
   --name uptime-monitor \
   uptime-monitor
 ```
 
-Replace `/path/to/nas/logs` with the actual path to your NAS directory where you want to store the logs.
+Replace `$HOME/uptime_logs` with the actual path where you want to store the logs.
 
 ### Accessing the Web Interface
 
@@ -92,6 +96,8 @@ The web interface provides:
 - Current uptime summary
 - Latest ping results
 - Access to historical log files
+- Network admin tools (router/modem admin panels)
+- Internet speed test integration
 - Mobile-friendly interface for easy monitoring on the go
 
 ## Usage 
