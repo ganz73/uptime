@@ -4,6 +4,9 @@ FROM python:3.11-slim
 # Install ping utility and tzdata for timezone support
 RUN apt-get update && apt-get install -y iputils-ping tzdata && rm -rf /var/lib/apt/lists/*
 
+# Set default timezone (can be overridden with -e TZ=... at runtime)
+ENV TZ=America/New_York
+
 # Set working directory
 WORKDIR /app
 
